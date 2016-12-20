@@ -1,2 +1,2 @@
-# Elixir-Password-Cracker
+# PPR-Sha256
 Assignment for PPR
