@@ -20,8 +20,8 @@
 #include <inttypes.h>
 #include <chrono>
 
-#define NUM_ELEMENTS (2)
-#define NUM_ELEMENTS_INT (1)
+#define NUM_ELEMENTS (4)
+#define NUM_ELEMENTS_INT (2)
 #define WIDTH_OUTPUT (10)
 #define HEIGHT_OUTPUT (1014)
 #define SHA256_RESULT_SIZE (8)
@@ -39,8 +39,6 @@ char* read_source(const char* filename) {
 }
 
 void random_fill(cl_char array[], cl_int startIndex[], cl_int endindex[], size_t size) {
-	//for (int i = 0; i < size; ++i)
-	//	array[i] = 'c';//array[i] = (cl_float)rand() / RAND_MAX;
 	startIndex[0] = 0;
 	for (int i = 0; i < size; i++) {
 		endindex[i] = startIndex[i] + 5;
@@ -50,22 +48,6 @@ void random_fill(cl_char array[], cl_int startIndex[], cl_int endindex[], size_t
 		startIndex[i+1] = endindex[i];
 	}
 
-	
-	//array[0] = 'H';
-	//array[1] = 'e';
-	//array[2] = 'l';
-	//array[3] = 'l';
-	//array[4] = 'o';
-	//startIndex[0] = 0;
-	//
-	//array[5] = 'W';
-	//array[6] = 'o';
-	//array[7] = 'r';
-	//array[8] = 'l';
-	//array[9] = 'd';
-	//startIndex[1] = 5;
-	//endindex[1] = 10;
-	
 }
 
 int main() {
@@ -114,15 +96,13 @@ int main() {
 	cl_int c[NUM_ELEMENTS_INT];
 	a[0] = '1';
 	a[1] = '\0';
-	a[2] = '2';
+	a[2] = '1';
 	a[3] = '\0';
 	b[0] = 0;
 	c[0] = 2;
-	//random_fill(a,b,c, NUM_ELEMENTS_INT);
-	//random_fill(b, NUM_ELEMENTS);
-
+	b[1] = 3;
+	c[1] = 5;
  
-
 	//uint64_t startGPU = mach_absolute_time();
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -136,10 +116,7 @@ int main() {
 		sizeof(cl_int) * NUM_ELEMENTS_INT, c, NULL);
 
 	//Create Output buffer write Only
-	cl_mem buffer_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_uint) * SHA256_RESULT_SIZE, NULL, NULL);
-
-	cl_mem output = clCreateBuffer(context, CL_MEM_WRITE_ONLY,
-		sizeof(cl_char) * (NUM_ELEMENTS + NUM_ELEMENTS_INT), NULL, NULL);
+	cl_mem buffer_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_uint) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, NULL, NULL);
 
 	//set Kernel Arguments
 	clSetKernelArg(kernel, 0, sizeof(cl_mem), &inputA);
@@ -149,7 +126,6 @@ int main() {
 
 	cl_event timing_event;
 	size_t work_units = NUM_ELEMENTS_INT;
-	//size_t work_units[] = { WIDTH_OUTPUT, HEIGHT_OUTPUT };
 	status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &work_units,
 		NULL, 0, NULL,&timing_event);
 
@@ -160,16 +136,25 @@ int main() {
 	memset(results, 0, sizeof(cl_uint) * SHA256_RESULT_SIZE);
 
 	//Calculate Results and copy from output buffer to results
-
-	status = clEnqueueReadBuffer(queue, buffer_out, CL_TRUE, 0, sizeof(cl_uint) * SHA256_RESULT_SIZE,
+	status = clEnqueueReadBuffer(queue, buffer_out, CL_TRUE, 0, sizeof(cl_uint) * SHA256_RESULT_SIZE * NUM_ELEMENTS_INT,
 		results, 0, NULL, NULL);
-	char outpoutHex[65];
-	for (int i = 0; i<SHA256_RESULT_SIZE; i++)
-	{
-		sprintf(outpoutHex + i * 8, "%08x", results[i]);
 
+	//Print Sha values
+	char outpoutHex[65];
+	int shaIndex = 0;
+	int shaEnd = 8;
+	for (int j = 0; j < NUM_ELEMENTS_INT; j++) {
+		int k = 0;
+		for (int i = shaIndex; i<shaEnd; i++)
+		{
+			sprintf(outpoutHex + k * 8, "%08x", results[i]);
+			k++;
+		}
+		shaIndex += 8;
+		shaEnd += 8;
+		printf("%s\n", outpoutHex);
 	}
-	printf("%s\n", outpoutHex);
+
 	std::cout << results[0];
 
 	//uint64_t endGPU = mach_absolute_time();
@@ -187,7 +172,7 @@ int main() {
 	clReleaseEvent(timing_event);
 	clReleaseMemObject(inputA);
 	clReleaseMemObject(inputB);
-	clReleaseMemObject(output);
+	clReleaseMemObject(buffer_out);
 	clReleaseKernel(kernel);
 	clReleaseProgram(program);
 	clReleaseCommandQueue(queue);

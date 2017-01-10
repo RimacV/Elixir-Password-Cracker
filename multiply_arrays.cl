@@ -47,11 +47,9 @@ __kernel void multiply_arrays(__global const char* inputA,
 	__global uint *digest) {
 
 	int id = get_global_id(0);
+	printf("globalId %i\n", id);
 	int start = inputB[id];
 	int end = inputC[id];
-	//for (int i = start; i < end; i++) {
-	//	output[i] = inputA[i];
-	//}
 
 	int t, gid, msg_pad;
 	int stop, mmod;
@@ -83,26 +81,29 @@ __kernel void multiply_arrays(__global const char* inputA,
 	total = ulen % 64 >= 56 ? 2 : 1 + ulen / 64;
 
 	printf("ulen: %u total:%u\n", ulen, total);
-
-	digest[0] = H0;
-	digest[1] = H1;
-	digest[2] = H2;
-	digest[3] = H3;
-	digest[4] = H4;
-	digest[5] = H5;
-	digest[6] = H6;
-	digest[7] = H7;
+	if (id != 0) {
+		id = id * 8;
+	}
+	printf("globalId mod %i\n", id);
+	digest[id] = H0;
+	digest[id +1] = H1;
+	digest[id +2 ] = H2;
+	digest[id +3] = H3;
+	digest[id +4] = H4;
+	digest[id+5] = H5;
+	digest[id+6] = H6;
+	digest[id+7] = H7;
 	for (item = 0; item < total; item++)
 	{
 
-		A = digest[0];
-		B = digest[1];
-		C = digest[2];
-		D = digest[3];
-		E = digest[4];
-		F = digest[5];
-		G = digest[6];
-		H = digest[7];
+		A = digest[id];
+		B = digest[id+1];
+		C = digest[id+2];
+		D = digest[id+3];
+		E = digest[id+4];
+		F = digest[id+5];
+		G = digest[id+6];
+		H = digest[id+7];
 
 #pragma unroll
 		for (t = 0; t < 80; t++) {
@@ -173,14 +174,14 @@ __kernel void multiply_arrays(__global const char* inputA,
 			T2 = sigma0(A) + maj(A, B, C);
 			H = G; G = F; F = E; E = D + T1; D = C; C = B; B = A; A = T1 + T2;
 		}
-		digest[0] += A;
-		digest[1] += B;
-		digest[2] += C;
-		digest[3] += D;
-		digest[4] += E;
-		digest[5] += F;
-		digest[6] += G;
-		digest[7] += H;
+		digest[id] += A;
+		digest[id+1] += B;
+		digest[id+2] += C;
+		digest[id+3] += D;
+		digest[id+4] += E;
+		digest[id+5] += F;
+		digest[id+6] += G;
+		digest[id+7] += H;
 
 		for (t = 0; t < 80; t++)
 		{
