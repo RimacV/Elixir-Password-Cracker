@@ -23,8 +23,6 @@
 
 #define NUM_ELEMENTS (200)
 #define NUM_ELEMENTS_INT (100)
-#define WIDTH_OUTPUT (10)
-#define HEIGHT_OUTPUT (1014)
 #define SHA256_RESULT_SIZE (8)
 
 char* read_source(const char* filename) {
@@ -107,14 +105,7 @@ int main() {
 		j++;
 		startW += lengthW;
 	}
-	//a[0] = '1';
-	//a[1] = '\0';
-	//a[2] = '2';
-	//a[3] = '\0';
-	//b[0] = 0;
-	//c[0] = 2;
-	//b[1] = 2;
-	//c[1] = 4;
+	a[NUM_ELEMENTS - 2] = '2';
  
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -128,7 +119,7 @@ int main() {
 		sizeof(cl_int) * NUM_ELEMENTS_INT, c, NULL);
 
 	//Create Output buffer write Only
-	cl_mem buffer_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_uint) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, NULL, NULL);
+	cl_mem buffer_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, NULL, NULL);
 
 	//set Kernel Arguments
 	clSetKernelArg(kernel, 0, sizeof(cl_mem), &inputA);
@@ -141,34 +132,35 @@ int main() {
 	status = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &work_units,
 		NULL, 0, NULL,&timing_event);
 
-	cl_uint *results;
+	cl_int *results;
 	cl_mem  pinned_partial_hashes;
-	pinned_partial_hashes = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(cl_uint) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, NULL, &status);
-	results = (cl_uint *)clEnqueueMapBuffer(queue, pinned_partial_hashes, CL_TRUE, CL_MAP_READ, 0, sizeof(cl_uint) * SHA256_RESULT_SIZE * NUM_ELEMENTS_INT, 0, NULL, NULL, &status);
-	memset(results, 0, sizeof(cl_uint) * SHA256_RESULT_SIZE);
+	pinned_partial_hashes = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(cl_int) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, NULL, &status);
+	results = (cl_int *)clEnqueueMapBuffer(queue, pinned_partial_hashes, CL_TRUE, CL_MAP_READ, 0, sizeof(cl_int) * SHA256_RESULT_SIZE * NUM_ELEMENTS_INT, 0, NULL, NULL, &status);
+	memset(results, 0, sizeof(cl_int) * SHA256_RESULT_SIZE);
+	//results[0] = -1;
 
 	//Calculate Results and copy from output buffer to results
-	status = clEnqueueReadBuffer(queue, buffer_out, CL_TRUE, 0, sizeof(cl_uint) * SHA256_RESULT_SIZE * NUM_ELEMENTS_INT,
+	status = clEnqueueReadBuffer(queue, buffer_out, CL_TRUE, 0, sizeof(cl_int) * SHA256_RESULT_SIZE * NUM_ELEMENTS_INT,
 		results, 0, NULL, NULL);
+	printf("results[0] %i\n", results[0]);
 	//uint64_t endGPU = mach_absolute_time();
 	auto finish = std::chrono::high_resolution_clock::now();
 	std::cout << "Total(GPU) :" << std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() << "ns\n";
 
-	////Print Sha values
-	//char outpoutHex[65];
-	//int shaIndex = 0;
-	//int shaEnd = 8;
-	//for (int j = 0; j < NUM_ELEMENTS_INT; j++) {
-	//	int k = 0;
-	//	for (int i = shaIndex; i<shaEnd; i++)
-	//	{
-	//		sprintf(outpoutHex + k * 8, "%08x", results[i]);
-	//		k++;
-	//	}
-	//	shaIndex += 8;
-	//	shaEnd += 8;
-	//	printf("Number:%i | %s\n",j, outpoutHex);
-	//}
+	//Print Sha values
+	char outpoutHex[65];
+	int shaIndex = 0;
+	int shaEnd = 8;
+	for (int j = 0; j < NUM_ELEMENTS_INT; j++) {
+		int k = 0;		for (int i = shaIndex; i<shaEnd; i++)
+		{
+			sprintf(outpoutHex + k * 8, "%08x", results[i]);
+			k++;
+		}
+		shaIndex += 8;
+		shaEnd += 8;
+		printf("Number:%i | %s\n",j, outpoutHex);
+	}
 
 	//printf("Total (GPU): %lu ns\n\n", (unsigned long)(endGPU - startGPU));
 
