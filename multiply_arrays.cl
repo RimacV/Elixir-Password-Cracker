@@ -11,6 +11,23 @@
 #define H6 0x1f83d9ab
 #define H7 0x5be0cd19
 
+#define R0 0xd4735e3a
+#define R1 0x265e16ee
+#define R2 0xe03f5971
+#define R3 0x8b9b5d03
+#define R4 0x019c07d8
+#define R5 0xb6c51f90
+#define R6 0xda3a666e
+#define R7 0xec13ab35
+
+
+
+
+
+
+
+
+
 
 uint rotr(uint x, int n) {
 	if (n < 32) return (x >> n) | (x << (32 - n));
@@ -44,13 +61,13 @@ uint gamma1(uint x) {
 __kernel void multiply_arrays(__global const char* inputA,
 	__global int* inputB,
 	__global int* inputC,
-	__global uint *digest) {
+	__global int *digest
+	) {
 
 	int id = get_global_id(0);
-	/*printf("globalId %i\n", id);*/
+	/*printf("globalId %i\n", get_global_size(0));*/
 	int start = inputB[id];
 	int end = inputC[id];
-
 	int t, gid, msg_pad;
 	int stop, mmod;
 	uint i, ulen, item, total;
@@ -79,10 +96,9 @@ __kernel void multiply_arrays(__global const char* inputA,
 
 
 	total = ulen % 64 >= 56 ? 2 : 1 + ulen / 64;
-
 	/*printf("ulen: %u total:%u\n", ulen, total);*/
 	if (id != 0) {
-		id = id * 8;
+		id = id *8;
 	}
 	/*printf("globalId mod %i\n", id);*/
 	digest[id] = H0;
@@ -175,14 +191,26 @@ __kernel void multiply_arrays(__global const char* inputA,
 			H = G; G = F; F = E; E = D + T1; D = C; C = B; B = A; A = T1 + T2;
 		}
 		digest[id] += A;
+		//if (0xd4735e3a == digest[id +1]) 
+		//printf("digest[0]: %08x\n", digest[id]);
 		digest[id+1] += B;
+		/*printf("digest[1]: %i\n", digest[id + 1]);*/
 		digest[id+2] += C;
+		/*printf("digest[2]: %i\n", digest[id + 2]);*/
 		digest[id+3] += D;
+		/*printf("digest[3]: %i\n", digest[id + 3 ]);*/
 		digest[id+4] += E;
+		/*printf("digest[4]: %i\n", digest[id +4 ]);*/
 		digest[id+5] += F;
+		/*printf("digest[5]: %i\n", digest[id+5]);*/
 		digest[id+6] += G;
+		/*printf("digest[6]: %i\n", digest[id+6]);*/
 		digest[id+7] += H;
+		/*printf("digest[7]: %i\n", digest[id+7]);*/
 
+		if (digest[id] == R0 && digest[id +1] == R1 && digest[id +2 ] == R2 && digest[id +3] == R3 && digest[id+4] == R4 && digest[id +5] == R5 && digest[id+6] == R6 && digest[id+7] == R7) {
+			digest[0] = start;
+		}
 		//for (t = 0; t < 80; t++)
 		//{
 		//	printf("W[%d]: %u\n", t, W[t]);
