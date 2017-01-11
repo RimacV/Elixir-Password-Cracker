@@ -47,7 +47,7 @@ __kernel void multiply_arrays(__global const char* inputA,
 	__global uint *digest) {
 
 	int id = get_global_id(0);
-	printf("globalId %i\n", id);
+	/*printf("globalId %i\n", id);*/
 	int start = inputB[id];
 	int end = inputC[id];
 
@@ -80,11 +80,11 @@ __kernel void multiply_arrays(__global const char* inputA,
 
 	total = ulen % 64 >= 56 ? 2 : 1 + ulen / 64;
 
-	printf("ulen: %u total:%u\n", ulen, total);
+	/*printf("ulen: %u total:%u\n", ulen, total);*/
 	if (id != 0) {
 		id = id * 8;
 	}
-	printf("globalId mod %i\n", id);
+	/*printf("globalId mod %i\n", id);*/
 	digest[id] = H0;
 	digest[id +1] = H1;
 	digest[id +2 ] = H2;
@@ -119,19 +119,19 @@ __kernel void multiply_arrays(__global const char* inputA,
 			current_pad = -1;
 		}
 
-			printf("current_pad: %d\n",current_pad);
+			/*printf("current_pad: %d\n",current_pad);*/
 		if (current_pad > 0)
 		{
 			i = current_pad;
 
 			stop = i / 4;
-					printf("i:%d, stop: %d msg_pad:%d\n",i,stop, msg_pad);
+					/*printf("i:%d, stop: %d msg_pad:%d\n",i,stop, msg_pad);*/
 			for (t = 0; t < stop; t++) {
 				W[t] = ((uchar)plain_key[msg_pad + t * 4]) << 24;
 				W[t] |= ((uchar)plain_key[msg_pad + t * 4 + 1]) << 16;
 				W[t] |= ((uchar)plain_key[msg_pad + t * 4 + 2]) << 8;
 				W[t] |= (uchar)plain_key[msg_pad + t * 4 + 3];
-				printf("W[%u]: %u\n",t,W[t]);
+				/*printf("W[%u]: %u\n",t,W[t]);*/
 			}
 			mmod = i % 4;
 			if (mmod == 3) {
@@ -156,7 +156,7 @@ __kernel void multiply_arrays(__global const char* inputA,
 			if (current_pad < 56)
 			{
 				W[15] = ulen * 8;
-				printf("ulen avlue 2 :w[15] :%u\n", W[15]);
+				/*printf("ulen avlue 2 :w[15] :%u\n", W[15]);*/
 			}
 		}
 		else if (current_pad < 0)
@@ -164,7 +164,7 @@ __kernel void multiply_arrays(__global const char* inputA,
 			if (ulen % 64 == 0)
 				W[0] = 0x80000000;
 			W[15] = ulen * 8;
-			printf("ulen avlue 3 :w[15] :%u\n", W[15]);
+			/*printf("ulen avlue 3 :w[15] :%u\n", W[15]);*/
 		}
 
 		for (t = 0; t < 64; t++) {
@@ -183,10 +183,10 @@ __kernel void multiply_arrays(__global const char* inputA,
 		digest[id+6] += G;
 		digest[id+7] += H;
 
-		for (t = 0; t < 80; t++)
-		{
-			printf("W[%d]: %u\n", t, W[t]);
-		}
+		//for (t = 0; t < 80; t++)
+		//{
+		//	printf("W[%d]: %u\n", t, W[t]);
+		//}
 	}
 }
 //ö
