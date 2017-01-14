@@ -58,14 +58,14 @@ uint gamma1(uint x) {
 	return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10);
 }
 
-__kernel void multiply_arrays(__global const char* inputA,
+__kernel void sha256Cracker(__global const char* inputA,
 	__global int* inputB,
 	__global int* inputC,
 	__global int *digest
 	) {
 
 	int id = get_global_id(0);
-	/*printf("globalId %i\n", get_global_size(0));*/
+	//printf("globalId %s\n", inputA);
 	int start = inputB[id];
 	int end = inputC[id];
 	int t, gid, msg_pad;
@@ -74,13 +74,17 @@ __kernel void multiply_arrays(__global const char* inputA,
 	uint W[80], temp, A, B, C, D, E, F, G, H, T1, T2;
 	//uint num_keys = data_info[1];
 	int current_pad;
-	ulen = (end - start)-1;
-	char plain_key[5];
+	ulen = (end - start) - 1;
+	char plain_key[100];
 	int j = 0;
+	//printf("start %i\n", start);
+	//printf("end %i\n", end);
 	for (int i = start; i < end; i++) {
 		plain_key[j] = inputA[i];
+	/*	printf("%c\n", plain_key[j]);*/
 		j++;
 	}
+	//
 	uint K[64] = {
 		0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
 		0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -98,28 +102,28 @@ __kernel void multiply_arrays(__global const char* inputA,
 	total = ulen % 64 >= 56 ? 2 : 1 + ulen / 64;
 	/*printf("ulen: %u total:%u\n", ulen, total);*/
 	if (id != 0) {
-		id = id *8;
+		id = id * 8;
 	}
 	/*printf("globalId mod %i\n", id);*/
 	digest[id] = H0;
-	digest[id +1] = H1;
-	digest[id +2 ] = H2;
-	digest[id +3] = H3;
-	digest[id +4] = H4;
-	digest[id+5] = H5;
-	digest[id+6] = H6;
-	digest[id+7] = H7;
+	digest[id + 1] = H1;
+	digest[id + 2] = H2;
+	digest[id + 3] = H3;
+	digest[id + 4] = H4;
+	digest[id + 5] = H5;
+	digest[id + 6] = H6;
+	digest[id + 7] = H7;
 	for (item = 0; item < total; item++)
 	{
 
 		A = digest[id];
-		B = digest[id+1];
-		C = digest[id+2];
-		D = digest[id+3];
-		E = digest[id+4];
-		F = digest[id+5];
-		G = digest[id+6];
-		H = digest[id+7];
+		B = digest[id + 1];
+		C = digest[id + 2];
+		D = digest[id + 3];
+		E = digest[id + 4];
+		F = digest[id + 5];
+		G = digest[id + 6];
+		H = digest[id + 7];
 
 #pragma unroll
 		for (t = 0; t < 80; t++) {
@@ -135,13 +139,13 @@ __kernel void multiply_arrays(__global const char* inputA,
 			current_pad = -1;
 		}
 
-			/*printf("current_pad: %d\n",current_pad);*/
+		/*printf("current_pad: %d\n",current_pad);*/
 		if (current_pad > 0)
 		{
 			i = current_pad;
 
 			stop = i / 4;
-					/*printf("i:%d, stop: %d msg_pad:%d\n",i,stop, msg_pad);*/
+			/*printf("i:%d, stop: %d msg_pad:%d\n",i,stop, msg_pad);*/
 			for (t = 0; t < stop; t++) {
 				W[t] = ((uchar)plain_key[msg_pad + t * 4]) << 24;
 				W[t] |= ((uchar)plain_key[msg_pad + t * 4 + 1]) << 16;
@@ -193,22 +197,22 @@ __kernel void multiply_arrays(__global const char* inputA,
 		digest[id] += A;
 		//if (0xd4735e3a == digest[id +1]) 
 		//printf("digest[0]: %08x\n", digest[id]);
-		digest[id+1] += B;
+		digest[id + 1] += B;
 		/*printf("digest[1]: %i\n", digest[id + 1]);*/
-		digest[id+2] += C;
+		digest[id + 2] += C;
 		/*printf("digest[2]: %i\n", digest[id + 2]);*/
-		digest[id+3] += D;
+		digest[id + 3] += D;
 		/*printf("digest[3]: %i\n", digest[id + 3 ]);*/
-		digest[id+4] += E;
+		digest[id + 4] += E;
 		/*printf("digest[4]: %i\n", digest[id +4 ]);*/
-		digest[id+5] += F;
+		digest[id + 5] += F;
 		/*printf("digest[5]: %i\n", digest[id+5]);*/
-		digest[id+6] += G;
+		digest[id + 6] += G;
 		/*printf("digest[6]: %i\n", digest[id+6]);*/
-		digest[id+7] += H;
+		digest[id + 7] += H;
 		/*printf("digest[7]: %i\n", digest[id+7]);*/
 
-		if (digest[id] == R0 && digest[id +1] == R1 && digest[id +2 ] == R2 && digest[id +3] == R3 && digest[id+4] == R4 && digest[id +5] == R5 && digest[id+6] == R6 && digest[id+7] == R7) {
+		if (digest[id] == R0 && digest[id + 1] == R1 && digest[id + 2] == R2 && digest[id + 3] == R3 && digest[id + 4] == R4 && digest[id + 5] == R5 && digest[id + 6] == R6 && digest[id + 7] == R7) {
 			digest[0] = start;
 		}
 		//for (t = 0; t < 80; t++)
