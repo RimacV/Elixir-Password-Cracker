@@ -11,16 +11,24 @@
 #define H6 0x1f83d9ab
 #define H7 0x5be0cd19
 
-#define R0 0xd4735e3a
-#define R1 0x265e16ee
-#define R2 0xe03f5971
-#define R3 0x8b9b5d03
-#define R4 0x019c07d8
-#define R5 0xb6c51f90
-#define R6 0xda3a666e
-#define R7 0xec13ab35
+ //sha for 123456
+#define R0 0x8d969eef
+#define R1 0x6ecad3c2
+#define R2 0x9a3a6292
+#define R3 0x80e686cf
+#define R4 0x0c3f5d5a
+#define R5 0x86aff3ca
+#define R6 0x12020c92
+#define R7 0x3adc6c92
 
-
+//#define R0 0x229a99a7
+//#define R1 0x94919912
+//#define R2 0x1a3b5b5c
+//#define R3 0xd648cb70
+//#define R4 0x37fd4b8a
+//#define R5 0x7bd6d613
+//#define R6 0x248ed130
+//#define R7 0x09fcdccd
 
 
 
@@ -213,7 +221,7 @@ __kernel void sha256Cracker(__global const char* inputA,
 		/*printf("digest[7]: %i\n", digest[id+7]);*/
 
 		if (digest[id] == R0 && digest[id + 1] == R1 && digest[id + 2] == R2 && digest[id + 3] == R3 && digest[id + 4] == R4 && digest[id + 5] == R5 && digest[id + 6] == R6 && digest[id + 7] == R7) {
-			digest[0] = start;
+			digest[0] = get_global_id(0);
 		}
 		//for (t = 0; t < 80; t++)
 		//{

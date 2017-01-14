@@ -25,7 +25,6 @@ static char *saved_plain;
 static int *saved_start_index;
 static int *saved_end_index;
 
-static unsigned int datai[3];
 static int have_full_hashes;
 
 static size_t kpc = 4;
@@ -165,6 +164,23 @@ void read_words(FILE *f, struct WordsWithPositions *inputWords, enum Strategie s
 	return;
 }
 
+void print_calculated_sha_values() {
+	char outpoutHex[65];
+	int shaIndex = 0;
+	int shaEnd = 8;
+	for (int j = 0; j < NUM_ELEMENTS_INT; j++)
+	{
+		int k = 0;
+		for (int i = shaIndex; i<shaEnd; i++)
+		{
+			sprintf(outpoutHex + k * 8, "%08x", partial_hashes[i]);
+			k++;
+		}
+		shaIndex += 8;
+		shaEnd += 8;
+		printf("Number:%i | %s\n", j, outpoutHex);
+	}
+}
 
 void sha256_init(size_t user_kpc)
 {
@@ -175,64 +191,142 @@ void sha256_init(size_t user_kpc)
 	create_clobj();
 }
 
-void sha256_crypt(char* input, char* output)
+int copy_data_to_buffer_and_calcualte_sha(struct WordsWithPositions *wordsToTest ) {
+	memcpy(saved_plain, wordsToTest->words, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD);
+	memcpy(saved_start_index, wordsToTest->startValues, sizeof(cl_int)*NUM_ELEMENTS_INT);
+	memcpy(saved_end_index, wordsToTest->endValues, sizeof(cl_int)*NUM_ELEMENTS_INT);
+	crypt_all();
+	/*printf("results[0] %i\n", partial_hashes[0]);*/
+
+	if (partial_hashes[0] >= 0 && partial_hashes[0] <NUM_ELEMENTS_INT) {
+		char password[MAX_LENGTH_ONE_WORD];
+		int j = 0;
+		for (int i = wordsToTest->startValues[partial_hashes[0]]; i < wordsToTest->endValues[partial_hashes[0]]; i++) {
+			password[j] = wordsToTest->words[i];
+			j++;
+		}
+		printf("Password found!: %s\n", password);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 {
 	FILE *dict;
 	errno_t err;
 	struct WordsWithPositions wordsToTest;
 	global_work_size = NUM_ELEMENTS_INT;
-	err = fopen_s(&dict, "dict.txt", "r");
+	err = fopen_s(&dict, pathToDict, "r");
 	if (err == 0)
 	{
-		printf("The file 'dict.txt' was opened\n");
+		printf("The file '%s' was opened\n", pathToDict);
+		unsigned long counter = 0;
+
+		printf("Applying Strategie: NoStrategie\n");
 		while (wordsToTest.eofIsReached[0] != 1)
 		{
 			read_words(dict, &wordsToTest, NoStrategie);
-			memcpy(saved_plain, wordsToTest.words, NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD);
-			memcpy(saved_start_index, wordsToTest.startValues, NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD);
-			memcpy(saved_end_index, wordsToTest.endValues, NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD);
-			crypt_all();
-			printf("results[0] %i\n", partial_hashes[0]);
-			char outpoutHex[65];
-			int shaIndex = 0;
-			int shaEnd = 8;
-			for (int j = 0; j < NUM_ELEMENTS_INT; j++) {
-				int k = 0;		
-				for (int i = shaIndex; i<shaEnd; i++)
-				{
-					sprintf(outpoutHex + k * 8, "%08x", partial_hashes[i]);
-					k++;
-				}
-				shaIndex += 8;
-				shaEnd += 8;
-				printf("Number:%i | %s\n", j, outpoutHex);
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
+				printf("%lu words checked \n", counter);
+				return;
 			}
+			if (printingIsEnabled)
+			{
+				print_calculated_sha_values();
+			}
+			counter += NUM_ELEMENTS_INT;
+			//if (counter % 1000) {
+			//	/*printf("%lu words checked \n", counter);*/
+			//}
 		}
+		printf("%lu words checked \n", counter);
+		printf("Applying Strategie: ReplaceLettersWithNumbers\n");
+		wordsToTest.eofIsReached[0] = 0;
+		while (wordsToTest.eofIsReached[0] != 1)
+		{
+			read_words(dict, &wordsToTest, ReplaceLettersWithNumbers);
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
+				printf("%lu words checked \n", counter);
+				return;
+			}
+			if (printingIsEnabled)
+			{
+				print_calculated_sha_values();
+			}
+			counter += NUM_ELEMENTS_INT;
+			//if (counter % 1000) {
+			//	/*printf("%lu words checked \n", counter);*/
+			//}
+		}
+		printf("%lu words checked \n", counter);
+		printf("Applying Strategie: RemoveVocals\n");
+		wordsToTest.eofIsReached[0] = 0;
+		while (wordsToTest.eofIsReached[0] != 1)
+		{
+			read_words(dict, &wordsToTest, RemoveVocals);
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
+				printf("%lu words checked \n", counter);
+				return;
+			}
+			if (printingIsEnabled)
+			{
+				print_calculated_sha_values();
+			}
+			counter += NUM_ELEMENTS_INT;
+			//if (counter % 1000) {
+			//	/*printf("%lu words checked \n", counter);*/
+			//}
+		}
+		printf("%lu words checked \n", counter);
+		printf("Applying Strategie: AddNumberAtBeginnig\n");
+		wordsToTest.eofIsReached[0] = 0;
+		while (wordsToTest.eofIsReached[0] != 1)
+		{
+			read_words(dict, &wordsToTest, AddNumberAtBeginnig);
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
+				printf("%lu words checked \n", counter);
+				return;
+			}
+			if (printingIsEnabled)
+			{
+				print_calculated_sha_values();
+			}
+			counter += NUM_ELEMENTS_INT;
+			//if (counter % 1000) {
+			//	/*printf("%lu words checked \n", counter);*/
+			//}
+		}
+		printf("%lu words checked \n", counter);
+		printf("Applying Strategie: AddNumberAtEnd\n");
+		wordsToTest.eofIsReached[0] = 0;
+		while (wordsToTest.eofIsReached[0] != 1)
+		{
+			read_words(dict, &wordsToTest, AddNumberAtEnd);
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
+				printf("%lu words checked \n", counter);
+				return;
+			}
+			if (printingIsEnabled)
+			{
+				print_calculated_sha_values();
+			}
+			counter += NUM_ELEMENTS_INT;
+			//if (counter % 1000) {
+			//	/*printf("%lu words checked \n", counter);*/
+			//}
+		}
+		printf("%lu words checked \n", counter);
 
 	}
-
-	//int i;
-	//string_len = strlen(input);
-	//memcpy(saved_plain, input, string_len + 1);
-
-	//crypt_all();
-
-	//for (i = 0; i<SHA256_RESULT_SIZE; i++)
-	//{
-	//	sprintf(output + i * 8, "%08x", partial_hashes[i]);
-
-	//}
 }
 
 
 void crypt_all()
 {
-	//printf("%s\n",saved_plain);
 	ret = clEnqueueWriteBuffer(command_queue, buffer_keys, CL_TRUE, 0, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD, saved_plain, 0, NULL, NULL);
-	printf("%s\n", buffer_keys);
 	ret = clEnqueueWriteBuffer(command_queue, buffer_start_index, CL_TRUE, 0, sizeof(cl_int) * NUM_ELEMENTS_INT, saved_start_index, 0, NULL, NULL);
 	ret = clEnqueueWriteBuffer(command_queue, buffer_end_index, CL_TRUE, 0, sizeof(cl_int) * NUM_ELEMENTS_INT, saved_end_index, 0, NULL, NULL);
-
 	ret = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
 
 	ret = clFinish(command_queue);
