@@ -1,42 +1,53 @@
 #include "sha256.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
 
-//#include <memory.h>
-//#include "sha256.h" //https://github.com/B-Con/crypto-algorithms/blob/master/sha256_test.c
+static cl_platform_id platform_id = NULL;
+static cl_device_id device_id = NULL;
+static cl_uint ret_num_devices;
+static cl_uint ret_num_platforms;
+static cl_context context;
+
+static cl_int ret;
 
 static char* source_str;
 static size_t source_size;
 
+static cl_program program;
+static cl_kernel kernel;
+static cl_command_queue command_queue;
 
 
-//static uint32_t *partial_hashes;
-/*
+static cl_mem pinned_saved_keys, pinned_partial_hashes, pinned_start_indexes, pinned_end_indexes,
+buffer_out, buffer_keys, buffer_start_index, buffer_end_index;
+static cl_uint *partial_hashes;
+
 static char *saved_plain;
 static int *saved_start_index;
 static int *saved_end_index;
-*/
+
 static int have_full_hashes;
 
 static size_t kpc = 4;
 
+static size_t global_work_size = 1;
+static size_t local_work_size = 1;
 static size_t string_len;
 
 void load_source();
+void createDevice();
+void createkernel();
+void create_clobj();
 void read_words(FILE *f, struct WordsWithPositions *inputWords, enum Strategie strategie);
-int crypt_all(struct WordsWithPositions *inputWords);
+void crypt_all();
 
 
 
 
 struct WordsWithPositions
 {
-	char words[NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD];
-	int startValues[NUM_ELEMENTS_INT];
-	int endValues[NUM_ELEMENTS_INT];
+	cl_char words[NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD];
+	cl_int startValues[NUM_ELEMENTS_INT];
+	cl_int endValues[NUM_ELEMENTS_INT];
 	int eofIsReached[1];
 };
 
@@ -152,7 +163,7 @@ void read_words(FILE *f, struct WordsWithPositions *inputWords, enum Strategie s
 	pos = ftell(f);
 	return;
 }
-/*
+
 void print_calculated_sha_values() {
 	char outpoutHex[65];
 	int shaIndex = 0;
@@ -162,29 +173,35 @@ void print_calculated_sha_values() {
 		int k = 0;
 		for (int i = shaIndex; i<shaEnd; i++)
 		{
-			printf(outpoutHex + k * 8, "%08x", partial_hashes[i]);
+			sprintf(outpoutHex + k * 8, "%08x", partial_hashes[i]);
 			k++;
 		}
 		shaIndex += 8;
 		shaEnd += 8;
 		printf("Number:%i | %s\n", j, outpoutHex);
 	}
-}*/
+}
 
 void sha256_init(size_t user_kpc)
 {
 	kpc = user_kpc;
+	load_source();
+	createDevice();
+	createkernel();
+	create_clobj();
 }
 
-int calculate_sha(struct WordsWithPositions *wordsToTest) {
-	
-	int index=crypt_all(wordsToTest);
+int copy_data_to_buffer_and_calcualte_sha(struct WordsWithPositions *wordsToTest ) {
+	memcpy(saved_plain, wordsToTest->words, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD);
+	memcpy(saved_start_index, wordsToTest->startValues, sizeof(cl_int)*NUM_ELEMENTS_INT);
+	memcpy(saved_end_index, wordsToTest->endValues, sizeof(cl_int)*NUM_ELEMENTS_INT);
+	crypt_all();
 	/*printf("results[0] %i\n", partial_hashes[0]);*/
 
-	if (index!=-1) {
+	if (partial_hashes[0] >= 0 && partial_hashes[0] <NUM_ELEMENTS_INT) {
 		char password[MAX_LENGTH_ONE_WORD];
 		int j = 0;
-		for (int i = wordsToTest->startValues[index]; i < wordsToTest->endValues[index]; i++) {
+		for (int i = wordsToTest->startValues[partial_hashes[0]]; i < wordsToTest->endValues[partial_hashes[0]]; i++) {
 			password[j] = wordsToTest->words[i];
 			j++;
 		}
@@ -194,27 +211,12 @@ int calculate_sha(struct WordsWithPositions *wordsToTest) {
 	return FALSE;
 }
 
-int crypt_all(struct WordsWithPositions *wordsToTest)
-{
-	int index = -1;
-	int temp = 0;
-	for (unsigned int i = 0; i < kpc && wordsToTest->startValues[i]>0;i++){
-
-		temp = sha256Cracker(wordsToTest->words, wordsToTest->startValues[i], wordsToTest->endValues[i]);
-		if (temp == 1){
-			index = i;
-		}
-	}
-	return index;
-}
-
-
 void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 {
 	FILE *dict;
 	errno_t err;
 	struct WordsWithPositions wordsToTest;
-	//global_work_size = NUM_ELEMENTS_INT;
+	global_work_size = NUM_ELEMENTS_INT;
 	err = fopen_s(&dict, pathToDict, "r");
 	if (err == 0)
 	{
@@ -225,14 +227,14 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		while (wordsToTest.eofIsReached[0] != 1)
 		{
 			read_words(dict, &wordsToTest, NoStrategie);
-			if (calculate_sha(&wordsToTest, &counter)) {
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
 				printf("%lu words checked \n", counter);
 				return;
 			}
-			/*if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
 			//	/*printf("%lu words checked \n", counter);*/
@@ -244,14 +246,14 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		while (wordsToTest.eofIsReached[0] != 1)
 		{
 			read_words(dict, &wordsToTest, ReplaceLettersWithNumbers);
-			if (calculate_sha(&wordsToTest, &counter)) {
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
 				printf("%lu words checked \n", counter);
 				return;
 			}
-		/*	if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
 			//	/*printf("%lu words checked \n", counter);*/
@@ -263,14 +265,14 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		while (wordsToTest.eofIsReached[0] != 1)
 		{
 			read_words(dict, &wordsToTest, RemoveVocals);
-			if (calculate_sha(&wordsToTest, &counter)) {
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
 				printf("%lu words checked \n", counter);
 				return;
 			}
-	/*		if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
 			//	/*printf("%lu words checked \n", counter);*/
@@ -282,14 +284,14 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		while (wordsToTest.eofIsReached[0] != 1)
 		{
 			read_words(dict, &wordsToTest, AddNumberAtBeginnig);
-			if (calculate_sha(&wordsToTest, &counter)) {
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
 				printf("%lu words checked \n", counter);
 				return;
 			}
-		/*	if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
 			//	/*printf("%lu words checked \n", counter);*/
@@ -301,14 +303,14 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		while (wordsToTest.eofIsReached[0] != 1)
 		{
 			read_words(dict, &wordsToTest, AddNumberAtEnd);
-			if (calculate_sha(&wordsToTest, &counter)) {
+			if (copy_data_to_buffer_and_calcualte_sha(&wordsToTest, &counter)) {
 				printf("%lu words checked \n", counter);
 				return;
 			}
-		/*	if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
 			//	/*printf("%lu words checked \n", counter);*/
@@ -320,5 +322,74 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 }
 
 
+void crypt_all()
+{
+	ret = clEnqueueWriteBuffer(command_queue, buffer_keys, CL_TRUE, 0, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD, saved_plain, 0, NULL, NULL);
+	ret = clEnqueueWriteBuffer(command_queue, buffer_start_index, CL_TRUE, 0, sizeof(cl_int) * NUM_ELEMENTS_INT, saved_start_index, 0, NULL, NULL);
+	ret = clEnqueueWriteBuffer(command_queue, buffer_end_index, CL_TRUE, 0, sizeof(cl_int) * NUM_ELEMENTS_INT, saved_end_index, 0, NULL, NULL);
+	ret = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
+
+	ret = clFinish(command_queue);
+	// read back partial hashes
+	ret = clEnqueueReadBuffer(command_queue, buffer_out, CL_TRUE, 0, sizeof(cl_int) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, partial_hashes, 0, NULL, NULL);
+	have_full_hashes = 0;
+}
+
+void load_source()
+{
+	FILE *fp;
+
+	fp = fopen("sha256Cracker.cl", "r");
+	if (!fp) {
+		fprintf(stderr, "Failed to load kernel.\n");
+		exit(1);
+	}
+	source_str = (char*)malloc(MAX_SOURCE_SIZE);
+	source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
+	fclose(fp);
+}
+
+void create_clobj() {
+	pinned_saved_keys = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD, NULL, &ret);
+	saved_plain = (char*)clEnqueueMapBuffer(command_queue, pinned_saved_keys, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD, 0, NULL, NULL, &ret);
+	memset(saved_plain, 0, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD);
+
+	pinned_start_indexes = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(cl_int) * NUM_ELEMENTS_INT, NULL, &ret);
+	saved_start_index = (int*)clEnqueueMapBuffer(command_queue, pinned_start_indexes, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(cl_int) * NUM_ELEMENTS_INT, 0, NULL, NULL, &ret);
+	memset(saved_start_index, 0, sizeof(cl_int) * NUM_ELEMENTS_INT);
+
+	pinned_end_indexes = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(cl_int) * NUM_ELEMENTS_INT, NULL, &ret);
+	saved_end_index = (int*)clEnqueueMapBuffer(command_queue, pinned_end_indexes, CL_TRUE, CL_MAP_WRITE | CL_MAP_READ, 0, sizeof(cl_int) * NUM_ELEMENTS_INT, 0, NULL, NULL, &ret);
+	memset(saved_end_index, 0, sizeof(cl_int) * NUM_ELEMENTS_INT);
+
+	pinned_partial_hashes = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(cl_int) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, NULL, &ret);
+	partial_hashes = (cl_int *)clEnqueueMapBuffer(command_queue, pinned_partial_hashes, CL_TRUE, CL_MAP_READ, 0, sizeof(cl_int) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, 0, NULL, NULL, &ret);
+	memset(partial_hashes, 0, sizeof(cl_int) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT);
+
+	buffer_keys = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_char) * NUM_ELEMENTS_INT * MAX_LENGTH_ONE_WORD, NULL, &ret);
+	buffer_start_index = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * NUM_ELEMENTS_INT, NULL, &ret);
+	buffer_end_index = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * NUM_ELEMENTS_INT, NULL, &ret);
+	buffer_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * SHA256_RESULT_SIZE *NUM_ELEMENTS_INT, NULL, &ret);
 
 
+	clSetKernelArg(kernel, 0, sizeof(buffer_keys), (void *)&buffer_keys);
+	clSetKernelArg(kernel, 1, sizeof(buffer_start_index), (void *)&buffer_start_index);
+	clSetKernelArg(kernel, 2, sizeof(buffer_end_index), (void *)&buffer_end_index);
+	clSetKernelArg(kernel, 3, sizeof(buffer_out), (void *)&buffer_out);
+}
+
+void createDevice()
+{
+	ret = clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
+	ret = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_ALL, 1, &device_id, &ret_num_devices);
+
+	context = clCreateContext(NULL, 1, &device_id, NULL, NULL, &ret);
+}
+
+void createkernel()
+{
+	program = clCreateProgramWithSource(context, 1, (const char **)&source_str, (const size_t *)&source_size, &ret);
+	ret = clBuildProgram(program, 1, &device_id, NULL, NULL, NULL);
+	kernel = clCreateKernel(program, "sha256Cracker", &ret);
+	command_queue = clCreateCommandQueue(context, device_id, 0, &ret);
+}
