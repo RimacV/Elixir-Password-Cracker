@@ -11,6 +11,7 @@
 static char* source_str;
 static size_t source_size;
 
+unsigned long counter2;
 
 
 //static uint32_t *partial_hashes;
@@ -202,12 +203,13 @@ int crypt_all(struct WordsWithPositions *wordsToTest)
 	unsigned int i;
 	// i<NUM_ELEMENTS_INT falls datei weniger wörter hat, als NUM_ELMENTS zulässt
 	for (i = 0; i<NUM_ELEMENTS_INT && wordsToTest->startValues[i] >= 0; i++){
-
+		
 		temp = sha256Cracker(wordsToTest->words, wordsToTest->startValues[i], wordsToTest->endValues[i] );
 		if (temp == TRUE){
 			index = i;
 		}
 	}
+	counter2 += counter2 + i;
 	//printf("%lu words checked \n", i);
 	return index;
 }
@@ -218,6 +220,7 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 	FILE *dict;
 	errno_t err;
 	struct WordsWithPositions wordsToTest;
+	counter2 = 0;
 	//global_work_size = NUM_ELEMENTS_INT;
 	err = fopen_s(&dict, pathToDict, "r");
 	if (err == 0)
@@ -226,20 +229,20 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		unsigned long counter = 0;
 
 		printf("Applying Strategie: NoStrategie\n");
-		// counter < NUM_ELMENTS_INT falls datei mehr wörter hat, als NUM_ELMENTS_INT zulässt??
-		while (wordsToTest.eofIsReached[0] != 1 && counter <NUM_ELEMENTS_INT)
+		while (wordsToTest.eofIsReached[0] != 1 )
 		{
 			read_words(dict, &wordsToTest, NoStrategie);
-			counter += 1;
+			counter += NUM_ELEMENTS_INT;
 			if (calculate_sha(&wordsToTest)) {
-				printf("%lu words checked \n", counter * NUM_ELEMENTS_INT);
+				printf("%lu words checked \n", counter2);
+				printf("%lu words checked \n", counter);
 				return;
 			}
 			/*if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
 			}*/
-			counter += 1;
+			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
 			//	/*printf("%lu words checked \n", counter);*/
 			//}
@@ -323,7 +326,8 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		}
 		printf("%lu words checked \n", counter);
 		*/
-		printf("%lu words checked \n", counter * NUM_ELEMENTS_INT);
+		printf("%lu words checked \n", counter2);
+		printf("%lu words checked \n", counter);
 	}
 }
 
