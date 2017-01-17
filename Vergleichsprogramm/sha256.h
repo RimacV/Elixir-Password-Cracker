@@ -6,8 +6,8 @@
 #define SHA256_BINARY_SIZE			32
 #define SHA256_RESULT_SIZE			8
 
-#define NUM_ELEMENTS_INT (800)
-#define MAX_LENGTH_ONE_WORD (100)
+#define NUM_ELEMENTS_INT (9600)
+#define MAX_LENGTH_ONE_WORD (10)
 #define MAX_NUMBER_TO_ADD (1)
 
 const int  TRUE = 1;

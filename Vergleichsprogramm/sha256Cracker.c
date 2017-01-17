@@ -29,11 +29,11 @@ unsigned int gamma1(unsigned int x) {
 	return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10);
 }
 
-int sha256Cracker(char* inputA[],
-	int* inputB,
-	int* inputC
+int sha256Cracker(char inputA[],
+	int inputB,
+	int inputC
 	) {
-	int result = 0;
+	int result = FOUND_FALSE;
 	int digest[8];
 	//printf("globalId %s\n", inputA);
 	int start = inputB;
@@ -47,14 +47,16 @@ int sha256Cracker(char* inputA[],
 	ulen = (end - start) - 1;
 	char plain_key[100];
 	int j = 0;
-	//printf("start %i\n", start);
-	//printf("end %i\n", end);
+	
 	for (int i = start; i < end; i++) {
 		plain_key[j] = inputA[i];
-			printf("%c\n", plain_key[j]);
+			//printf("%c", plain_key[j]);
 		j++;
 	}
-	//
+	
+	//printf("start %i\n", start);
+	//printf("end %i\n", end);
+
 	uint32_t K[64] = {
 		0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
 		0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -108,13 +110,13 @@ int sha256Cracker(char* inputA[],
 			current_pad = -1;
 		}
 
-		printf("current_pad: %d\n",current_pad);
+		//printf("current_pad: %d\n",current_pad);
 		if (current_pad > 0)
 		{
 			i = current_pad;
 
 			stop = i / 4;
-			printf("i:%d, stop: %d msg_pad:%d\n",i,stop, msg_pad);
+			//printf("i:%d, stop: %d msg_pad:%d\n",i,stop, msg_pad);
 			for (t = 0; t < stop; t++) {
 				W[t] = ((unsigned char)plain_key[msg_pad + t * 4]) << 24;
 				W[t] |= ((unsigned char)plain_key[msg_pad + t * 4 + 1]) << 16;
@@ -165,29 +167,29 @@ int sha256Cracker(char* inputA[],
 		}
 		digest[0] += A;
 		//if (0xd4735e3a == digest[id +1]) 
-		//printf("digest[0]: %08x\n", digest[id]);
+		//printf("digest[0]: %08x\n", digest[0]);
 		digest[1] += B;
-		/*printf("digest[1]: %i\n", digest[id + 1]);*/
+		//printf("digest[1]: %i\n", digest[1]);
 		digest[2] += C;
-		/*printf("digest[2]: %i\n", digest[id + 2]);*/
+		//printf("digest[2]: %i\n", digest[2]);
 		digest[3] += D;
-		/*printf("digest[3]: %i\n", digest[id + 3 ]);*/
+		//printf("digest[3]: %i\n", digest[3]);
 		digest[4] += E;
-		/*printf("digest[4]: %i\n", digest[id +4 ]);*/
+		//printf("digest[4]: %i\n", digest[4]);
 		digest[5] += F;
-		/*printf("digest[5]: %i\n", digest[id+5]);*/
+		//printf("digest[5]: %i\n", digest[5]);
 		digest[6] += G;
-		/*printf("digest[6]: %i\n", digest[id+6]);*/
+		//printf("digest[6]: %i\n", digest[6]);
 		digest[7] += H;
-		/*printf("digest[7]: %i\n", digest[id+7]);*/
+		//printf("digest[7]: %i\n", digest[7]);
 
 		if (digest[0] == R0 && digest[1] == R1 && digest[2] == R2 && digest[3] == R3 && digest[4] == R4 && digest[5] == R5 && digest[6] == R6 && digest[7] == R7) {
-			result= 1;
+			result= FOUND_TRUE;
 		}
 		
 		//for (t = 0; t < 80; t++)
 		//{
-		//	printf("W[%d]: %u\n", t, W[t]);
+			//printf("W[%d]: %u\n", t, W[t]);
 		//}
 	}
 	return result;

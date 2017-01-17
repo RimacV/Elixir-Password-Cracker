@@ -24,6 +24,9 @@
 #define R6 0x12020c92
 #define R7 0x3adc6c92
 
+const int  FOUND_TRUE = 1;
+const int  FOUND_FALSE = 0;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -181,6 +181,7 @@ int calculate_sha(struct WordsWithPositions *wordsToTest) {
 	int index=crypt_all(wordsToTest);
 	/*printf("results[0] %i\n", partial_hashes[0]);*/
 
+	
 	if (index!=-1) {
 		char password[MAX_LENGTH_ONE_WORD];
 		int j = 0;
@@ -197,14 +198,17 @@ int calculate_sha(struct WordsWithPositions *wordsToTest) {
 int crypt_all(struct WordsWithPositions *wordsToTest)
 {
 	int index = -1;
-	int temp = 0;
-	for (unsigned int i = 0; i < kpc && wordsToTest->startValues[i]>0;i++){
+	int temp = FALSE;
+	unsigned int i;
+	// i<NUM_ELEMENTS_INT falls datei weniger wörter hat, als NUM_ELMENTS zulässt
+	for (i = 0; i<NUM_ELEMENTS_INT && wordsToTest->startValues[i] >= 0; i++){
 
-		temp = sha256Cracker(wordsToTest->words, wordsToTest->startValues[i], wordsToTest->endValues[i]);
-		if (temp == 1){
+		temp = sha256Cracker(wordsToTest->words, wordsToTest->startValues[i], wordsToTest->endValues[i] );
+		if (temp == TRUE){
 			index = i;
 		}
 	}
+	//printf("%lu words checked \n", i);
 	return index;
 }
 
@@ -222,23 +226,26 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 		unsigned long counter = 0;
 
 		printf("Applying Strategie: NoStrategie\n");
-		while (wordsToTest.eofIsReached[0] != 1)
+		// counter < NUM_ELMENTS_INT falls datei mehr wörter hat, als NUM_ELMENTS_INT zulässt??
+		while (wordsToTest.eofIsReached[0] != 1 && counter <NUM_ELEMENTS_INT)
 		{
 			read_words(dict, &wordsToTest, NoStrategie);
-			if (calculate_sha(&wordsToTest, &counter)) {
-				printf("%lu words checked \n", counter);
+			counter += 1;
+			if (calculate_sha(&wordsToTest)) {
+				printf("%lu words checked \n", counter * NUM_ELEMENTS_INT);
 				return;
 			}
 			/*if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
 			}*/
-			counter += NUM_ELEMENTS_INT;
+			counter += 1;
 			//if (counter % 1000) {
 			//	/*printf("%lu words checked \n", counter);*/
 			//}
 		}
-		printf("%lu words checked \n", counter);
+		//printf("%lu words checked \n", counter);
+		/*
 		printf("Applying Strategie: ReplaceLettersWithNumbers\n");
 		wordsToTest.eofIsReached[0] = 0;
 		while (wordsToTest.eofIsReached[0] != 1)
@@ -248,13 +255,13 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 				printf("%lu words checked \n", counter);
 				return;
 			}
-		/*	if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
-			//	/*printf("%lu words checked \n", counter);*/
+			//	printf("%lu words checked \n", counter);
 			//}
 		}
 		printf("%lu words checked \n", counter);
@@ -267,13 +274,13 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 				printf("%lu words checked \n", counter);
 				return;
 			}
-	/*		if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
-			//	/*printf("%lu words checked \n", counter);*/
+			//	printf("%lu words checked \n", counter);
 			//}
 		}
 		printf("%lu words checked \n", counter);
@@ -286,13 +293,13 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 				printf("%lu words checked \n", counter);
 				return;
 			}
-		/*	if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
-			//	/*printf("%lu words checked \n", counter);*/
+			//	printf("%lu words checked \n", counter);
 			//}
 		}
 		printf("%lu words checked \n", counter);
@@ -305,17 +312,18 @@ void start_brute_force_sha256(char* pathToDict, int printingIsEnabled)
 				printf("%lu words checked \n", counter);
 				return;
 			}
-		/*	if (printingIsEnabled)
+			if (printingIsEnabled)
 			{
 				print_calculated_sha_values();
-			}*/
+			}
 			counter += NUM_ELEMENTS_INT;
 			//if (counter % 1000) {
-			//	/*printf("%lu words checked \n", counter);*/
+			//	/*printf("%lu words checked \n", counter);
 			//}
 		}
 		printf("%lu words checked \n", counter);
-
+		*/
+		printf("%lu words checked \n", counter * NUM_ELEMENTS_INT);
 	}
 }
 
